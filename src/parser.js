@@ -1,5 +1,4 @@
 import { XMLParser } from 'fast-xml-parser';
-import { Parser as HtmlParser } from 'htmlparser2';
 
 export function parseTemperatures(xmlString) {
   const xmlParser = new XMLParser({
@@ -21,18 +20,15 @@ export function parseTemperatures(xmlString) {
     ? partialResponse.changes.update
     : [partialResponse.changes.update];
 
-  // Find homePartId update (home page data)
-  const homePartUpdate = updates.find(
-    (u) => u?.['@_id']?.includes('homePartId')
-  );
-
-  // Also check for infoPanel (detailed info page)
-  const infoPanelUpdate = updates.find(
-    (u) => u?.['@_id']?.includes('infoPanel')
-  );
-
-  const html = homePartUpdate?.['#text'] || homePartUpdate?.['#cdata'] ||
-               infoPanelUpdate?.['#text'] || infoPanelUpdate?.['#cdata'] || '';
+  // Get HTML from relevant update
+  let html = '';
+  for (const u of updates) {
+    const id = u?.['@_id'] || '';
+    if (id.includes('infoPanel') || id.includes('homePartId') || id === 'fDeviceHome') {
+      html = u['#text'] || u['#cdata'] || '';
+      if (html) break;
+    }
+  }
 
   if (!html) {
     return { timestamp: new Date() };
@@ -44,105 +40,82 @@ export function parseTemperatures(xmlString) {
 function parseHtmlData(html) {
   const data = { timestamp: new Date() };
 
-  // Extract outdoor temperature from box-temperature
-  const outdoorMatch = html.match(/class="box-temperature"[^>]*>.*?<span>([^<]+)</s);
-  if (outdoorMatch) {
-    const temp = parseValue(outdoorMatch[1]);
-    if (temp !== null) data.af = temp;
-  }
+  // Parse temperatures from the "Teploty" group (group1)
+  // These have format: <div class="item-info-left">AF</div> <div class="item-info-right">-1,0 °C</div>
 
-  // Extract circuit temperature from currCircuitTempId
-  const circuitMatch = html.match(/id="fDeviceHome:currCircuitTempId"[^>]*>([^<]+)</);
-  if (circuitMatch) {
-    const temp = parseValue(circuitMatch[1]);
-    if (temp !== null) data.vf1 = temp;
-  }
+  // AF - venkovní teplota
+  const afMatch = html.match(/<div class="item-info-left">AF<\/div>[\s\S]*?<div class="item-info-right"[^>]*>([^<]+)/);
+  if (afMatch) data.af = parseValue(afMatch[1]);
 
-  // Extract humidity from place-perc
-  const humidityMatch = html.match(/class="place-perc"[^>]*>.*?(\d+[,.]?\d*)%/s);
-  if (humidityMatch) {
-    const humidity = parseValue(humidityMatch[1] + '%');
-    if (humidity !== null) data.humidity = humidity;
-  }
+  // WF - teplota vody kotle
+  const wfMatch = html.match(/<div class="item-info-left">WF<\/div>[\s\S]*?<div class="item-info-right"[^>]*>([^<]+)/);
+  if (wfMatch) data.wf = parseValue(wfMatch[1]);
 
-  // Also try parsing detailed sensor data (for Info page format)
-  parseDetailedSensors(html, data);
+  // SF - zásobník TUV
+  const sfMatch = html.match(/<div class="item-info-left">SF<\/div>[\s\S]*?<div class="item-info-right"[^>]*>([^<]+)/);
+  if (sfMatch) data.sf = parseValue(sfMatch[1]);
+
+  // VF1 - okruh 1
+  const vf1Match = html.match(/<div class="item-info-left">VF1<\/div>[\s\S]*?<div class="item-info-right"[^>]*>([^<]+)/);
+  if (vf1Match) data.vf1 = parseValue(vf1Match[1]);
+
+  // AGF - teplota spalin
+  const agfMatch = html.match(/<div class="item-info-left">AGF<\/div>[\s\S]*?<div class="item-info-right"[^>]*>([^<]+)/);
+  if (agfMatch) data.agf = parseValue(agfMatch[1]);
+
+  // PF - horní čidlo aku
+  const pfMatch = html.match(/<div class="item-info-left">PF<\/div>[\s\S]*?<div class="item-info-right"[^>]*>([^<]+)/);
+  if (pfMatch) data.pf = parseValue(pfMatch[1]);
+
+  // PF2 - 2. čidlo aku (in caption, item-info-left shows VI3)
+  const pf2Match = html.match(/PF2 - 2\. čidlo aku[\s\S]*?<div class="item-info-right"[^>]*>([^<]+)/);
+  if (pf2Match) data.pf2 = parseValue(pf2Match[1]);
+
+  // PF3 - 3. čidlo aku (in caption, item-info-left shows VI2)
+  const pf3Match = html.match(/PF3 - 3\. čidlo aku[\s\S]*?<div class="item-info-right"[^>]*>([^<]+)/);
+  if (pf3Match) data.pf3 = parseValue(pf3Match[1]);
+
+  // Room temperature - EFWa
+  const roomMatch = html.match(/<div class="item-info-left">EFWa<\/div>[\s\S]*?<div class="item-info-right"[^>]*>([^<]+)/);
+  if (roomMatch) data.roomTemp = parseValue(roomMatch[1]);
+
+  // Humidity - Vlhkost
+  const humidityMatch = html.match(/Vlhkost[\s\S]*?<div class="item-info-right"[^>]*>[^0-9]*(\d+[,.]?\d*)\s*%/);
+  if (humidityMatch) data.humidity = parseValue(humidityMatch[1] + '%');
+
+  // Fallback to home page format if no info page data found
+  if (Object.keys(data).length <= 1) {
+    parseHomePageFormat(html, data);
+  }
 
   return data;
 }
 
-function parseDetailedSensors(html, data) {
-  // Parse sensors using dt/dd pattern (Info page format)
-  let currentSensor = null;
-  let isInCaption = false;
-  let isInValue = false;
-  let captionText = '';
-  let valueText = '';
+function parseHomePageFormat(html, data) {
+  // Outdoor temperature from box-temperature
+  const outdoorMatch = html.match(/class="box-temperature"[^>]*>.*?<span>([^<]+)</s);
+  if (outdoorMatch && !data.af) data.af = parseValue(outdoorMatch[1]);
 
-  const parser = new HtmlParser({
-    onopentag(name, attrs) {
-      const className = attrs.class || '';
-      if (className.includes('caption') || name === 'dt') {
-        isInCaption = true;
-        captionText = '';
-      } else if (className.includes('value') || name === 'dd') {
-        isInValue = true;
-        valueText = '';
-      }
-    },
-    ontext(text) {
-      text = text.trim();
-      if (!text) return;
-      if (isInCaption) captionText += text;
-      else if (isInValue) valueText += text;
-    },
-    onclosetag(name) {
-      if (isInCaption && (name === 'dt' || captionText)) {
-        currentSensor = extractSensor(captionText);
-        isInCaption = false;
-      } else if (isInValue && (name === 'dd' || valueText)) {
-        if (currentSensor && valueText) {
-          const value = parseValue(valueText);
-          if (value !== null && !data[currentSensor]) {
-            data[currentSensor] = value;
-          }
-        }
-        isInValue = false;
-        currentSensor = null;
-      }
-    },
-  }, { decodeEntities: true });
+  // Circuit temperature from currCircuitTempId
+  const circuitMatch = html.match(/id="fDeviceHome:currCircuitTempId"[^>]*>([^<]+)</);
+  if (circuitMatch && !data.vf1) data.vf1 = parseValue(circuitMatch[1]);
 
-  parser.write(html);
-  parser.end();
-}
-
-const SENSOR_MAP = {
-  'AF': 'af',
-  'WF': 'wf',
-  'SF': 'sf',
-  'VF1': 'vf1',
-  'AGF': 'agf',
-  'PF': 'pf',
-  'PF2': 'pf2',
-  'PF3': 'pf3',
-};
-
-function extractSensor(caption) {
-  const upper = caption.trim().toUpperCase();
-
-  for (const [key, value] of Object.entries(SENSOR_MAP)) {
-    if (upper.includes(key)) return value;
-  }
-
-  if (upper.includes('ROOM') || upper.includes('MÍSTNOST')) return 'roomTemp';
-  if (upper.includes('HUMIDITY') || upper.includes('VLHKOST')) return 'humidity';
-
-  return null;
+  // Humidity from place-perc
+  const humidityMatch = html.match(/class="place-perc"[^>]*>.*?(\d+[,.]?\d*)%/s);
+  if (humidityMatch && !data.humidity) data.humidity = parseValue(humidityMatch[1] + '%');
 }
 
 function parseValue(value) {
-  value = value.trim().replace(/[°C%\s]/g, '').replace(',', '.');
-  const parsed = parseFloat(value);
+  if (!value) return null;
+  value = value.trim();
+
+  // Extract first number (handle "47,2 °C / 20,0 °C" format)
+  const match = value.match(/^([+-]?\d+[,.]?\d*)/);
+  if (!match) return null;
+
+  // Replace comma with dot
+  const normalized = match[1].replace(',', '.');
+  const parsed = parseFloat(normalized);
+
   return isNaN(parsed) ? null : parsed;
 }

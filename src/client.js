@@ -7,6 +7,7 @@ export class AtmosClient {
     this.sessionId = null;
     this.clientWindow = this.generateClientWindow();
     this.viewState = 'stateless';
+    this.onInfoPage = false;
 
     this.axios = axios.create({
       timeout: 30000,
@@ -46,7 +47,6 @@ export class AtmosClient {
   }
 
   extractViewStateFromHtml(html) {
-    // Look for hidden input with ViewState
     const match = html.match(/name="jakarta\.faces\.ViewState"[^>]*value="([^"]+)"/);
     if (match && match[1]) {
       this.viewState = match[1];
@@ -102,7 +102,6 @@ export class AtmosClient {
   }
 
   async login(username, password) {
-    // First, load the login page to get initial ViewState
     const loginPage = await this.get('/login.html');
     this.extractViewStateFromHtml(loginPage);
 
@@ -118,7 +117,6 @@ export class AtmosClient {
     const response = await this.post('/login.html', params, false);
 
     if (response.redirect && this.sessionId) {
-      // Follow redirect to establish session - load the target page
       const targetPath = response.location || '/appl/devicehome.html';
       const homePage = await this.get(targetPath);
       this.extractViewStateFromHtml(homePage);
@@ -127,8 +125,14 @@ export class AtmosClient {
     throw new Error('Login failed: Invalid credentials');
   }
 
-  async pollTemperatures() {
-    // Use the home page poll to get temperature data
+  // Check if device is connected (no "Waiting for data" warning)
+  isDeviceConnected(xml) {
+    // Check if warning panel is empty or doesn't contain "Čekání na data"
+    return !xml.includes('Čekání na data') && !xml.includes('deviceWaiting4Data');
+  }
+
+  // Poll home page and check connection status
+  async pollHomePage() {
     const params = {
       'jakarta.faces.partial.ajax': 'true',
       'jakarta.faces.source': 'fDeviceHome:homePageDataPollId',
@@ -145,5 +149,71 @@ export class AtmosClient {
       return response.data;
     }
     throw new Error('Session expired - redirected to login');
+  }
+
+  // Wait for device to connect (max 10 seconds)
+  async waitForConnection(maxWaitMs = 10000, pollIntervalMs = 500) {
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < maxWaitMs) {
+      const xml = await this.pollHomePage();
+      if (this.isDeviceConnected(xml)) {
+        return true;
+      }
+      await new Promise(r => setTimeout(r, pollIntervalMs));
+    }
+
+    return false; // Timeout - device still not connected
+  }
+
+  // Navigate to Info page by clicking the Info button
+  async navigateToInfo() {
+    const params = {
+      'jakarta.faces.partial.ajax': 'true',
+      'jakarta.faces.source': 'fDeviceHome:j_id_4q',
+      'jakarta.faces.partial.execute': '@all',
+      'jakarta.faces.partial.render': 'fDeviceHome',
+      'fDeviceHome:j_id_4q': 'fDeviceHome:j_id_4q',
+      'fDeviceHome_SUBMIT': '1',
+      'jakarta.faces.ViewState': this.viewState,
+      'jakarta.faces.ClientWindow': this.clientWindow,
+    };
+
+    const response = await this.post('/appl/devicehome.html', params, true);
+    if (!response.redirect) {
+      this.extractViewStateFromXml(response.data);
+      this.onInfoPage = true;
+      return response.data;
+    }
+    throw new Error('Session expired - redirected to login');
+  }
+
+  // Poll Info page for detailed sensor data
+  async pollInfoPage() {
+    const params = {
+      'jakarta.faces.partial.ajax': 'true',
+      'jakarta.faces.source': 'fDeviceHome:pollReloadInfo',
+      'jakarta.faces.partial.execute': 'fDeviceHome:pollReloadInfo',
+      'jakarta.faces.partial.render': 'fDeviceHome:infoPanel',
+      'fDeviceHome:pollReloadInfo': 'fDeviceHome:pollReloadInfo',
+      'fDeviceHome_SUBMIT': '1',
+      'jakarta.faces.ViewState': this.viewState,
+      'jakarta.faces.ClientWindow': this.clientWindow,
+    };
+
+    const response = await this.post('/appl/devicehome.html', params, true);
+    if (!response.redirect) {
+      this.extractViewStateFromXml(response.data);
+      return response.data;
+    }
+    throw new Error('Session expired - redirected to login');
+  }
+
+  // Main poll method - uses Info page if available, falls back to home page
+  async pollTemperatures() {
+    if (this.onInfoPage) {
+      return this.pollInfoPage();
+    }
+    return this.pollHomePage();
   }
 }

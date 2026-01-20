@@ -28,6 +28,24 @@ async function main() {
   await client.login(username, password);
   console.log('Login successful');
 
+  console.log('Waiting for device connection...');
+  const connected = await client.waitForConnection(10000, 500);
+
+  if (connected) {
+    console.log('Device connected');
+    console.log('Navigating to Info page...');
+    const infoResponse = await client.navigateToInfo();
+
+    if (debug) {
+      const fs = await import('fs');
+      fs.writeFileSync('debug_info.html', infoResponse);
+      console.log('Wrote Info page response to debug_info.html');
+    }
+    console.log('Info page loaded');
+  } else {
+    console.log('Device not connected after 10s, using home page data');
+  }
+
   initCsv(outputFile);
   console.log(`Logging to ${outputFile} every ${interval / 1000}s`);
   console.log('Press Ctrl+C to stop\n');
@@ -45,7 +63,6 @@ async function main() {
       if (debug) {
         const fs = await import('fs');
         fs.writeFileSync('debug_poll.xml', xml);
-        console.log('Wrote poll response to debug_poll.xml');
       }
       const data = parseTemperatures(xml);
 
