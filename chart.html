@@ -34,23 +34,27 @@
         const agfIdx = headers.indexOf('agf');
         const sfIdx = headers.indexOf('sf');
 
-        const timestamps = [];
+        // Use [timestamp, value] pairs for time-based x-axis
         const roomTemp = [], pf = [], pf2 = [], pf3 = [], agf = [], sf = [];
+        let count = 0;
 
         for (let i = 1; i < lines.length; i++) {
           const cols = lines[i].split(',');
           if (cols.length < 2) continue;
 
-          timestamps.push(cols[0]);
-          roomTemp.push(parseFloat(cols[roomIdx]) || null);
-          pf.push(parseFloat(cols[pfIdx]) || null);
-          pf2.push(parseFloat(cols[pf2Idx]) || null);
-          pf3.push(parseFloat(cols[pf3Idx]) || null);
-          agf.push(agfIdx >= 0 ? (parseFloat(cols[agfIdx]) || null) : null);
-          sf.push(sfIdx >= 0 ? (parseFloat(cols[sfIdx]) || null) : null);
+          const ts = new Date(cols[0]).getTime();
+          if (isNaN(ts)) continue;
+
+          count++;
+          roomTemp.push([ts, parseFloat(cols[roomIdx]) || null]);
+          pf.push([ts, parseFloat(cols[pfIdx]) || null]);
+          pf2.push([ts, parseFloat(cols[pf2Idx]) || null]);
+          pf3.push([ts, parseFloat(cols[pf3Idx]) || null]);
+          agf.push([ts, agfIdx >= 0 ? (parseFloat(cols[agfIdx]) || null) : null]);
+          sf.push([ts, sfIdx >= 0 ? (parseFloat(cols[sfIdx]) || null) : null]);
         }
 
-        document.getElementById('status').textContent = `${timestamps.length} readings`;
+        document.getElementById('status').textContent = `${count} readings`;
 
         const option = {
           tooltip: {
@@ -80,21 +84,14 @@
           ],
           xAxis: [
             {
-              type: 'category',
-              data: timestamps,
+              type: 'time',
               gridIndex: 0,
               axisLabel: { show: false },
               axisTick: { show: false }
             },
             {
-              type: 'category',
-              data: timestamps,
-              gridIndex: 1,
-              axisLabel: {
-                formatter: function(value) {
-                  return new Date(value).toLocaleTimeString();
-                }
-              }
+              type: 'time',
+              gridIndex: 1
             }
           ],
           yAxis: [
