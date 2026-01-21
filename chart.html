@@ -107,7 +107,7 @@
             axisPointer: { type: 'cross' }
           },
           legend: {
-            data: ['Room Temp', 'PF (top)', 'PF2 (mid)', 'PF3 (bot)', 'SF', 'AGF'],
+            data: ['PF (top)', 'PF2 (mid)', 'PF3 (bot)', 'Room Temp', 'SF', 'AGF'],
             top: 0
           },
           axisPointer: {
@@ -118,13 +118,19 @@
               left: 60,
               right: 40,
               top: 50,
-              height: '45%'
+              height: '25%'
             },
             {
               left: 60,
               right: 40,
-              top: '62%',
+              top: '38%',
               height: '20%'
+            },
+            {
+              left: 60,
+              right: 40,
+              top: '66%',
+              height: '18%'
             }
           ],
           xAxis: [
@@ -136,7 +142,13 @@
             },
             {
               type: 'time',
-              gridIndex: 1
+              gridIndex: 1,
+              axisLabel: { show: false },
+              axisTick: { show: false }
+            },
+            {
+              type: 'time',
+              gridIndex: 2
             }
           ],
           yAxis: [
@@ -149,39 +161,35 @@
             },
             {
               type: 'value',
-              name: 'AGF °C',
+              name: '°C',
               nameLocation: 'middle',
               nameGap: 40,
               gridIndex: 1
+            },
+            {
+              type: 'value',
+              name: 'AGF °C',
+              nameLocation: 'middle',
+              nameGap: 40,
+              gridIndex: 2
             }
           ],
           dataZoom: [
             {
               type: 'slider',
-              xAxisIndex: [0, 1],
+              xAxisIndex: [0, 1, 2],
               start: 0,
               end: 100,
               bottom: 20
             },
             {
               type: 'inside',
-              xAxisIndex: [0, 1],
+              xAxisIndex: [0, 1, 2],
               start: 0,
               end: 100
             }
           ],
           series: [
-            {
-              name: 'Room Temp',
-              type: 'line',
-              xAxisIndex: 0,
-              yAxisIndex: 0,
-              data: roomTemp,
-              showSymbol: false,
-              lineStyle: { color: '#e74c3c' },
-              itemStyle: { color: '#e74c3c' },
-              markArea: markAreaConfig
-            },
             {
               name: 'PF (top)',
               type: 'line',
@@ -190,7 +198,8 @@
               data: pf,
               showSymbol: false,
               lineStyle: { color: '#3498db' },
-              itemStyle: { color: '#3498db' }
+              itemStyle: { color: '#3498db' },
+              markArea: markAreaConfig
             },
             {
               name: 'PF2 (mid)',
@@ -213,10 +222,21 @@
               itemStyle: { color: '#e67e22' }
             },
             {
+              name: 'Room Temp',
+              type: 'line',
+              xAxisIndex: 1,
+              yAxisIndex: 1,
+              data: roomTemp,
+              showSymbol: false,
+              lineStyle: { color: '#e74c3c' },
+              itemStyle: { color: '#e74c3c' },
+              markArea: markAreaConfig
+            },
+            {
               name: 'SF',
               type: 'line',
-              xAxisIndex: 0,
-              yAxisIndex: 0,
+              xAxisIndex: 1,
+              yAxisIndex: 1,
               data: sf,
               showSymbol: false,
               lineStyle: { color: '#1abc9c' },
@@ -225,8 +245,8 @@
             {
               name: 'AGF',
               type: 'line',
-              xAxisIndex: 1,
-              yAxisIndex: 1,
+              xAxisIndex: 2,
+              yAxisIndex: 2,
               data: agf,
               showSymbol: false,
               lineStyle: { color: '#9b59b6' },
