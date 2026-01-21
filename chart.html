@@ -18,17 +18,17 @@
     const chartDom = document.getElementById('chart');
     const chart = echarts.init(chartDom);
 
-    function buildKomfortRanges(data) {
-      // data is array of { ts, mode }
+    function buildRanges(data, predicate) {
+      // data is array of { ts, value }
       const ranges = [];
       let rangeStart = null;
 
       for (let i = 0; i < data.length; i++) {
-        const isKomfort = data[i].mode === 'Auto (Komfort)';
+        const isActive = predicate(data[i]);
 
-        if (isKomfort && rangeStart === null) {
+        if (isActive && rangeStart === null) {
           rangeStart = data[i].ts;
-        } else if (!isKomfort && rangeStart !== null) {
+        } else if (!isActive && rangeStart !== null) {
           ranges.push({ start: rangeStart, end: data[i - 1].ts });
           rangeStart = null;
         }
@@ -58,10 +58,12 @@
         const agfIdx = headers.indexOf('agf');
         const sfIdx = headers.indexOf('sf');
         const heatingModeIdx = headers.indexOf('heating_mode');
+        const mkp1Idx = headers.indexOf('mkp1');
 
         // Use [timestamp, value] pairs for time-based x-axis
         const roomTemp = [], pf = [], pf2 = [], pf3 = [], agf = [], sf = [];
         const heatingModeData = [];
+        const mkp1Data = [];
         let count = 0;
 
         for (let i = 1; i < lines.length; i++) {
@@ -82,24 +84,30 @@
           if (heatingModeIdx >= 0) {
             heatingModeData.push({ ts, mode: cols[heatingModeIdx] || '' });
           }
+          if (mkp1Idx >= 0) {
+            mkp1Data.push({ ts, value: parseInt(cols[mkp1Idx]) || 0 });
+          }
         }
 
         document.getElementById('status').textContent = `${count} readings`;
 
         // Build markArea data for Komfort mode ranges
-        const komfortRanges = buildKomfortRanges(heatingModeData);
-        const markAreaData = komfortRanges.map(r => [
+        const komfortRanges = buildRanges(heatingModeData, d => d.mode === 'Auto (Komfort)');
+        const komfortMarkAreaData = komfortRanges.map(r => [
           { xAxis: r.start },
           { xAxis: r.end }
         ]);
 
-        const markAreaConfig = {
+        const komfortMarkAreaConfig = {
           silent: true,
           itemStyle: {
             color: 'rgba(255, 193, 7, 0.15)'
           },
-          data: markAreaData
+          data: komfortMarkAreaData
         };
+
+        // Build MKP1 step series data
+        const mkp1Series = mkp1Data.map(d => [d.ts, d.value]);
 
         const option = {
           tooltip: {
@@ -107,7 +115,7 @@
             axisPointer: { type: 'cross' }
           },
           legend: {
-            data: ['PF (top)', 'PF2 (mid)', 'PF3 (bot)', 'Room Temp', 'SF', 'AGF'],
+            data: ['PF (top)', 'PF2 (mid)', 'PF3 (bot)', 'Room Temp', 'SF', 'MKP1', 'AGF'],
             top: 0
           },
           axisPointer: {
@@ -118,18 +126,24 @@
               left: 60,
               right: 40,
               top: 50,
-              height: '25%'
+              height: '22%'
             },
             {
               left: 60,
               right: 40,
-              top: '38%',
-              height: '20%'
+              top: '35%',
+              height: '18%'
             },
             {
               left: 60,
               right: 40,
-              top: '66%',
+              top: '56%',
+              height: 20
+            },
+            {
+              left: 60,
+              right: 40,
+              top: '62%',
               height: '18%'
             }
           ],
@@ -148,43 +162,63 @@
             },
             {
               type: 'time',
-              gridIndex: 2
+              gridIndex: 2,
+              axisLabel: { show: false },
+              axisTick: { show: false },
+              axisLine: { show: false }
+            },
+            {
+              type: 'time',
+              gridIndex: 3
             }
           ],
           yAxis: [
             {
               type: 'value',
-              name: '°C',
+              name: 'akumulace',
               nameLocation: 'middle',
               nameGap: 40,
               gridIndex: 0
             },
             {
               type: 'value',
-              name: '°C',
+              name: 'topeni/bojler',
               nameLocation: 'middle',
               nameGap: 40,
               gridIndex: 1
             },
             {
               type: 'value',
-              name: 'AGF °C',
+              gridIndex: 2,
+              min: 0,
+              max: 1,
+              axisLabel: { show: false },
+              axisTick: { show: false },
+              axisLine: { show: false },
+              splitLine: { show: false },
+              name: 'topeni ON/OFF',
+              nameLocation: 'middle',
+              nameGap: 40
+            },
+            {
+              type: 'value',
+              name: 'AGF',
               nameLocation: 'middle',
               nameGap: 40,
-              gridIndex: 2
+              gridIndex: 3
             }
           ],
           dataZoom: [
             {
               type: 'slider',
-              xAxisIndex: [0, 1, 2],
+              xAxisIndex: [0, 1, 2, 3],
               start: 0,
               end: 100,
               bottom: 20
             },
             {
               type: 'inside',
-              xAxisIndex: [0, 1, 2],
+              xAxisIndex: [0, 1, 2, 3],
               start: 0,
               end: 100
             }
@@ -199,7 +233,7 @@
               showSymbol: false,
               lineStyle: { color: '#3498db' },
               itemStyle: { color: '#3498db' },
-              markArea: markAreaConfig
+              markArea: komfortMarkAreaConfig
             },
             {
               name: 'PF2 (mid)',
@@ -230,7 +264,7 @@
               showSymbol: false,
               lineStyle: { color: '#e74c3c' },
               itemStyle: { color: '#e74c3c' },
-              markArea: markAreaConfig
+              markArea: komfortMarkAreaConfig
             },
             {
               name: 'SF',
@@ -243,15 +277,26 @@
               itemStyle: { color: '#1abc9c' }
             },
             {
-              name: 'AGF',
+              name: 'MKP1',
               type: 'line',
               xAxisIndex: 2,
               yAxisIndex: 2,
+              data: mkp1Series,
+              showSymbol: false,
+              step: 'end',
+              lineStyle: { width: 0 },
+              areaStyle: { color: '#3498db' }
+            },
+            {
+              name: 'AGF',
+              type: 'line',
+              xAxisIndex: 3,
+              yAxisIndex: 3,
               data: agf,
               showSymbol: false,
               lineStyle: { color: '#9b59b6' },
               itemStyle: { color: '#9b59b6' },
-              markArea: markAreaConfig
+              markArea: komfortMarkAreaConfig
             }
           ]
         };
