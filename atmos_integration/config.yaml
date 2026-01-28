@@ -1,7 +1,7 @@
-name: "Atmos History Scraper"
-description: "Scrapes temperature data from Atmos Cloud and logs to CSV"
+name: "Atmos Integration"
+description: "Integrates Atmos Cloud heating system with Home Assistant, providing temperature monitoring and data logging"
 version: "1.0.0"
-slug: "atmos_history_scraper"
+slug: "atmos_integration"
 init: false
 arch:
   - amd64
@@ -14,7 +14,7 @@ boot: auto
 options:
   username: ""
   password: ""
-  poll_interval: 60
+  poll_interval: 120
   output_file: "/share/atmos_history.csv"
 schema:
   username: str

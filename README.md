@@ -1,100 +1,32 @@
-# Atmos History
+# Atmos Home Assistant Addon Repository
 
-Tool to scrape temperature and sensor data from Atmos Cloud website and log to CSV, with interactive chart visualization.
-
-## Features
-
-- Scrapes sensor data from Atmos Cloud website at configurable intervals
-- Logs data to CSV file with dynamic column handling
-- Interactive chart visualization using ECharts
-- Tracks 35+ sensor values including:
-  - Temperature sensors (PF, PF2, PF3, AF, WF, SF, VF1, VF3, AGF, room temp)
-  - Equipment status (pumps, fan, servos)
-  - Heating/boiler modes
-  - Operating statistics
-
-## Requirements
-
-- Node.js >= 18.0.0
-- Atmos Cloud account
+This repository contains Home Assistant addons for integrating with Atmos Cloud heating systems.
 
 ## Installation
 
-```bash
-npm install
-```
+1. Open Home Assistant
+2. Navigate to **Settings** > **Add-ons** > **Add-on Store**
+3. Click the menu (three dots) in the top right corner
+4. Select **Repositories**
+5. Add this repository URL:
+   ```
+   https://github.com/Peracek/AtmosHomeAssistant
+   ```
+6. Click **Add** and then **Close**
+7. Refresh the page, find **Atmos Integration** in the store, and click **Install**
 
-## Configuration
+## Available Addons
 
-Copy `.env.example` to `.env` and fill in your credentials:
+### Atmos Integration
 
-```bash
-cp .env.example .env
-```
+Integrates your Atmos Cloud heating system with Home Assistant. Features:
 
-Edit `.env`:
+- Polls temperature data from Atmos Cloud at configurable intervals
+- Logs data to CSV for historical analysis
+- Works with all Atmos Cloud-connected heating systems
 
-```
-ATMOS_USERNAME=your_username
-ATMOS_PASSWORD=your_password
-POLL_INTERVAL=60
-OUTPUT_FILE=atmos_history.csv
-```
+For detailed configuration and setup instructions, see the [addon documentation](atmos_integration/README.md).
 
-Or use command line arguments:
+## Support
 
-```bash
-node index.js --username your_user --password your_pass --interval 60 --output data.csv
-```
-
-## Usage
-
-### Start data collection
-
-```bash
-npm start
-```
-
-Or with debug output:
-
-```bash
-node index.js --debug
-```
-
-### View charts
-
-In a separate terminal:
-
-```bash
-npm run chart
-```
-
-Then open http://localhost:3000 in your browser.
-
-## Chart Panels
-
-The visualization includes four synchronized panels:
-
-1. **akumulace** - Accumulator tank temperatures (PF top, PF2 mid, PF3 bottom)
-2. **topeni/bojler** - Room temperature and SF (hot water tank)
-3. **topeni ON/OFF** - Heating pump (MKP1) status indicator
-4. **AGF** - Flue gas temperature
-
-Yellow highlighted areas indicate "Auto (Komfort)" heating mode periods.
-
-## Project Structure
-
-```
-├── index.js        # Main entry point, polling loop
-├── serve.js        # Simple HTTP server for chart
-├── chart.html      # ECharts visualization
-├── src/
-│   ├── client.js   # Atmos Cloud website scraper
-│   ├── parser.js   # XML/HTML response parser
-│   └── csv.js      # CSV file handling
-└── .env            # Configuration (not in repo)
-```
-
-## License
-
-MIT
+If you encounter issues, please open an issue on GitHub.
