@@ -1,6 +1,11 @@
 # Changelog
 
-## [1.1.1] - 2025-01-29
+## [1.2.0] - 2025-01-29
+
+### Added
+- Configurable base URL (`base_url` option)
+- Supports Atmos Cloud (https://cloud.atmos.eu) or local Atmos Wifi gate (e.g., https://wg1000.local)
+- Default: https://cloud.atmos.eu
 
 ### Fixed
 - Auto-recovery on session expiration or consecutive poll failures

@@ -1,9 +1,10 @@
 import axios from 'axios';
 
-const BASE_URL = 'https://cloud.atmos.eu';
+const DEFAULT_BASE_URL = 'https://cloud.atmos.eu';
 
 export class AtmosClient {
-  constructor() {
+  constructor(baseUrl = DEFAULT_BASE_URL) {
+    this.baseUrl = baseUrl;
     this.sessionId = null;
     this.clientWindow = this.generateClientWindow();
     this.viewState = 'stateless';
@@ -58,7 +59,7 @@ export class AtmosClient {
   }
 
   async get(endpoint) {
-    const url = `${BASE_URL}${endpoint}?jfwid=${this.clientWindow}`;
+    const url = `${this.baseUrl}${endpoint}?jfwid=${this.clientWindow}`;
 
     const headers = {
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -75,7 +76,7 @@ export class AtmosClient {
   }
 
   async post(endpoint, params, isAjax = false) {
-    const url = `${BASE_URL}${endpoint}?jfwid=${this.clientWindow}`;
+    const url = `${this.baseUrl}${endpoint}?jfwid=${this.clientWindow}`;
     const body = new URLSearchParams(params).toString();
 
     const headers = {

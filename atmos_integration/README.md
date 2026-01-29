@@ -1,10 +1,12 @@
 # Atmos Integration - Home Assistant Addon
 
-This addon integrates your Atmos Cloud heating system with Home Assistant via a REST API, providing temperature monitoring capabilities.
+This addon integrates your Atmos heating system with Home Assistant via a REST API, providing temperature monitoring capabilities.
+
+Supports both **Atmos Cloud** (https://cloud.atmos.eu) and **local Atmos Wifi gate** (https://wg1000.local).
 
 ## Features
 
-- Polls temperature and sensor data from Atmos Cloud at configurable intervals
+- Polls temperature and sensor data from Atmos Cloud or local Wifi gate at configurable intervals
 - Exposes data via REST API for Home Assistant's REST sensor integration
 - Tracks 35+ sensor values including:
   - Temperature sensors (PF, PF2, PF3, AF, WF, SF, VF1, VF3, AGF, room temp)
@@ -16,9 +18,15 @@ This addon integrates your Atmos Cloud heating system with Home Assistant via a 
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `username` | Atmos Cloud username | (required) |
-| `password` | Atmos Cloud password | (required) |
+| `username` | Atmos username | (required) |
+| `password` | Atmos password | (required) |
 | `poll_interval` | Seconds between polls | 120 |
+| `base_url` | Atmos Cloud or local Wifi gate URL | https://cloud.atmos.eu |
+
+### Base URL Examples
+
+- **Atmos Cloud**: `https://cloud.atmos.eu` (default)
+- **Local Wifi gate**: `https://wg1000.local` (typical local hostname)
 
 ## REST API
 

@@ -8,6 +8,7 @@ const username = process.env.ATMOS_USERNAME || getArg('--username');
 const password = process.env.ATMOS_PASSWORD || getArg('--password');
 const interval = parseInt(process.env.POLL_INTERVAL || getArg('--interval') || '60', 10) * 1000;
 const apiPort = parseInt(process.env.API_PORT || getArg('--port') || '8099', 10);
+const baseUrl = process.env.ATMOS_BASE_URL || getArg('--base-url') || 'https://cloud.atmos.eu';
 const debug = process.argv.includes('--debug');
 
 let latestData = null;
@@ -46,7 +47,7 @@ async function main() {
   const MAX_CONSECUTIVE_FAILURES = 3;
   let consecutiveFailures = 0;
 
-  const client = new AtmosClient();
+  const client = new AtmosClient(baseUrl);
 
   async function reinitializeSession() {
     console.log('Reinitializing session...');
@@ -62,7 +63,7 @@ async function main() {
     }
   }
 
-  console.log('Logging in to Atmos Cloud...');
+  console.log(`Connecting to ${baseUrl}...`);
   await client.login(username, password);
   console.log('Login successful');
 
